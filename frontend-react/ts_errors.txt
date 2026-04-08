@@ -1,0 +1,7 @@
+﻿src/components/BMICalculator.tsx(14,20): error TS6133: 'setActivity' is declared but its value is never read.
+src/components/FoodChecker.tsx(8,19): error TS1484: 'FoodItem' is a type and must be imported using a type-only import when 'verbatimModuleSyntax' is enabled.
+src/components/FoodChecker.tsx(8,19): error TS6133: 'FoodItem' is declared but its value is never read.
+src/components/FoodChecker.tsx(13,11): error TS6133: 't' is declared but its value is never read.
+src/components/FoodChecker.tsx(19,9): error TS6133: 'tot' is declared but its value is never read.
+src/components/ParticleBackground.tsx(12,22): error TS2554: Expected 1 arguments, but got 0.
+src/components/Quiz.tsx(8,24): error TS1484: 'Question' is a type and must be imported using a type-only import when 'verbatimModuleSyntax' is enabled.

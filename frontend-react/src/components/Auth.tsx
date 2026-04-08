@@ -5,9 +5,16 @@
 
 import React, { useState, useEffect } from 'react';
 import { useAppContext } from '../context/AppContext';
+import { auth, googleProvider } from '../lib/firebase';
+import { signInWithPopup } from 'firebase/auth';
+import { api } from '../lib/api';
+
+const isFirebaseConfigured = !!import.meta.env.VITE_FIREBASE_API_KEY &&
+  import.meta.env.VITE_FIREBASE_API_KEY !== 'missing-api-key';
 
 const Auth: React.FC = () => {
-  const { setUserName, setIsAuth, setCurrentScreen } = useAppContext();
+  const { setUserName, setIsAuth, setCurrentScreen, setToken, setBackendUser } = useAppContext();
+  const [loading, setLoading] = useState(false);
   const [isLogin, setIsLogin] = useState(true);
   const [name, setNameInput] = useState('');
   const [email, setEmail] = useState('');
@@ -17,21 +24,68 @@ const Auth: React.FC = () => {
 
   useEffect(() => { setTimeout(() => setMounted(true), 60); }, []);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
-    const nameVal = isLogin ? email : name;
-    if (!nameVal.trim() || !password.trim()) {
-      setError('Please fill in all fields.');
-      return;
+    
+    if (isLogin) {
+      if (!email.trim() || !password.trim()) {
+        setError('Please fill in all fields.');
+        return;
+      }
+    } else {
+      if (!name.trim() || !email.trim() || !password.trim()) {
+        setError('Please fill in all fields.');
+        return;
+      }
+      if (password.length < 4) {
+        setError('Password must be at least 4 characters.');
+        return;
+      }
     }
-    if (password.length < 4) {
-      setError('Password must be at least 4 characters.');
-      return;
+
+    try {
+      setLoading(true);
+      const data = isLogin
+        ? await api.auth.login(email, password)
+        : await api.auth.register(name, email, password);
+
+      setToken(data.access_token);
+      setBackendUser(data.user);
+      setUserName(data.user.name);
+      setIsAuth(true);
+      setCurrentScreen('dashboard');
+    } catch (err: any) {
+      console.error('Auth error:', err);
+      setError(err.message || 'An error occurred during authentication.');
+    } finally {
+      setLoading(false);
     }
-    setUserName(nameVal.trim());
-    setIsAuth(true);
-    setCurrentScreen('dashboard');
+  };
+
+  const handleGoogleLogin = async () => {
+    try {
+      setError('');
+      setLoading(true);
+      if (!import.meta.env.VITE_FIREBASE_API_KEY) {
+        setError('Firebase Config Missing! Please set VITE_FIREBASE_* variables in .env');
+        return;
+      }
+      const result = await signInWithPopup(auth, googleProvider);
+      const idToken = await result.user.getIdToken();
+
+      const data = await api.auth.firebase(idToken);
+      setToken(data.access_token);
+      setBackendUser(data.user);
+      setUserName(data.user.name);
+      setIsAuth(true);
+      setCurrentScreen('dashboard');
+    } catch (err: any) {
+      console.error('Google login error:', err);
+      setError(err.message || 'An error occurred during Google sign-in.');
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -120,22 +174,36 @@ const Auth: React.FC = () => {
 
           {error && <div className="auth-error">{error}</div>}
 
-          <button type="submit" className="btn btn--gold btn--full auth-submit">
-            {isLogin ? 'Sign In to Dashboard →' : 'Create My Account →'}
+          <button type="submit" className="btn btn--gold btn--full auth-submit" disabled={loading}>
+            {loading ? '⏳ Please wait...' : isLogin ? 'Sign In to Dashboard →' : 'Create My Account →'}
           </button>
         </form>
 
-        {/* Divider */}
-        <div className="auth-divider">
-          <span className="auth-divider-line" />
-          <span className="auth-divider-text">or continue as</span>
-          <span className="auth-divider-line" />
-        </div>
+        {/* Google sign-in — only shown when Firebase is configured */}
+        {isFirebaseConfigured && (
+          <>
+            <div className="auth-divider">
+              <span className="auth-divider-line" />
+              <span className="auth-divider-text">or continue with</span>
+              <span className="auth-divider-line" />
+            </div>
+            <button
+              type="button"
+              className="btn btn--full"
+              style={{ marginBottom: '1rem', background: '#fff', color: '#333', border: '1px solid #ddd', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem' }}
+              onClick={handleGoogleLogin}
+              disabled={loading}
+            >
+              <span>🌐</span> Sign in with Google
+            </button>
+          </>
+        )}
 
         {/* Guest quiz link */}
         <button className="auth-guest" onClick={() => setCurrentScreen('landing')}>
           🪷 Take the quiz without an account
         </button>
+
 
         {/* Toggle */}
         <p className="auth-toggle-text">

@@ -8,9 +8,10 @@ import { useAppContext } from '../context/AppContext';
 import { QUESTIONS_EN } from '../data/prakriti';
 import type { Question } from '../data/prakriti';
 import { translations } from '../data/i18n';
+import { api } from '../lib/api';
 
 const Quiz: React.FC = () => {
-  const { t, lang, setScores, setCurrentScreen } = useAppContext();
+  const { t, lang, setScores, setCurrentScreen, isAuth } = useAppContext();
   const [currentQIndex, setCurrentQIndex] = useState(0);
   const [userAnswers, setUserAnswers] = useState<('v' | 'p' | 'k')[]>([]);
   const [isExiting, setIsExiting] = useState<string | null>(null);
@@ -47,6 +48,13 @@ const Quiz: React.FC = () => {
       }, { v: 0, p: 0, k: 0 });
       
       setScores(finalScores);
+
+      // Save to MongoDB if user is logged in
+      if (isAuth) {
+        api.user.saveResults(finalScores)
+          .catch((err) => console.error('Failed to save quiz results:', err));
+      }
+
       setCurrentScreen('result');
     }
   }, [currentQIndex, questions.length, setScores, setCurrentScreen, userAnswers]);
